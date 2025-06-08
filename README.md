@@ -2,7 +2,7 @@
 Mouse button remapper for X11
 
 The reason i created this program was to get functionality i was able to achieve on my old
-windos rice using a dirthack AutoHotkey script:  
+windos rice using a [dirthack AutoHotkey script](https://gist.github.com/budRich/6044613):  
 
 ```AutoHotkey
 /* dirthack.ahk */
@@ -16,27 +16,42 @@ More or less all applications with "tabs" (browsers, filemanagers, text editors)
 shortcuts `Ctrl+PgUp/PgDown` to navigate the tabs (also `Ctrl+\[shift\]+Tab`) and `Ctrl+w` to close the tabs. It is really sweet to have that functionality also on the mouse, and i set it up so that holding Right Mousebutton while scrolling the mousewheel. I have never managed to get this working on linux and X11, since it would require using the RightButton of the mouse as a "modifier" in a keyboard shortcut. But now, with `eeka` it is possible :D
 
 ```
-# ~/.config/eeka
+# ~/.config/eeka/config
 
-Button3 & ScrollUp = Ctrl+PageUp
-Button3 & ScrollDown = Ctrl+PageDown
-Button3 & Button2 = Ctrl+W
+LButton & ScrollUp   = Super+Tab
+LButton & ScrollDown = Super+Shift+Tab
+LButton & RButton    = Super+M
 
-Button8 = Backspace # remap back button to Backspace
-Button9 = F5        # remap forward button to F5
+RButton & ScrollUp   = Ctrl+PageDown
+RButton & ScrollDown = Ctrl+PageUp
+RButton & MButton    = Ctrl+W
 
-blacklist = [instance=Shattered Pixel Dungeon], \
-            [instance=sublime_main]
+BButton = Backspace
+FButton = F5
+
+window [instance=i3-frame] {
+    blacklist = RButton
+}
+
+window [instance=Shattered Pixel Dungeon] {
+    blacklist = RButton
+}
 
 window [class=Code] {
-    Button8 & ScrollDown = Ctrl+B
-    Button8 & ScrollUp = Ctrl+B
+    
+    RButton & LButton = Ctrl+B
+}
+
+window [class=Sublime_text] {
+    Button8 = Backspace
+    RButton & LButton = Ctrl+Alt+S
 }
 
 window [instance=brave-browser, class=bloatlord] {
-    Button3 & Button2 = Ctrl+D
-    Button8 & ScrollDown = Alt+x
-    Button8 & ScrollUp = Alt+x
+    RButton & MButton    = Ctrl+D
+    RButton & LButton    = Alt+X
+    RButton & ScrollUp   = Ctrl+K
+    RButton & ScrollDown = Ctrl+J
 }
 ```
 
@@ -49,7 +64,7 @@ bindsym --whole-window button8 exec --no-startup-id exec xdotool key BackSpace
 bindsym --whole-window button9 exec --no-startup-id exec xdotool key F5
 ```
 
-With `eeka` you can use Button1, Button3, Button8 and Button9 as modifiers (i.e Right, Back and Forward button). 
+With `eeka` you can use Button1, Button3, Button8 and Button9 as modifiers (i.e Left, Right, Back and Forward button). 
 
 This is also true for right mouse button in some applications (blender, games like Shattered Pixel Dungeon) where right mousebutton can be used to pan the screen, i.e. dragging with right button.
 
