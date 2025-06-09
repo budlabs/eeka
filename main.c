@@ -274,7 +274,6 @@ void print_usage(const char *progname) {
            progname);
 }
 
-// Add bit manipulation macros
 #define BITS_TO_LONGS(nr) (((nr) + BITS_PER_LONG - 1) / BITS_PER_LONG)
 #define BITS_PER_LONG (sizeof(long) * 8)
 #define test_bit(nr, addr) (((1UL << ((nr) % BITS_PER_LONG)) & ((addr)[(nr) / BITS_PER_LONG])) != 0)
@@ -291,7 +290,7 @@ int find_mouse_device(char *device_path, size_t path_size) {
     while ((entry = readdir(dir)) != NULL) {
         if (strncmp(entry->d_name, "event", 5) != 0) continue;
         
-        char full_path[280];  // Increased buffer size
+        char full_path[280];
         snprintf(full_path, sizeof(full_path), "/dev/input/%s", entry->d_name);
         
         int fd = open(full_path, O_RDONLY);
@@ -327,7 +326,6 @@ int find_mouse_device(char *device_path, size_t path_size) {
     return -1;
 }
 
-// Replace init_libinput with init_evdev
 int init_evdev(void) {
     if (find_mouse_device(evdev_ctx.device_path, sizeof(evdev_ctx.device_path)) < 0) {
         return -1;
@@ -350,7 +348,6 @@ int init_evdev(void) {
     return 0;
 }
 
-// Replace cleanup_libinput with cleanup_evdev  
 void cleanup_evdev(void) {
     if (evdev_ctx.mouse_fd >= 0) {
         ioctl(evdev_ctx.mouse_fd, EVIOCGRAB, 0);  // Release grab
@@ -359,26 +356,23 @@ void cleanup_evdev(void) {
     }
 }
 
-// Convert evdev button codes to eeka button numbers
 int evdev_button_to_eeka_button(uint32_t button) {
     switch (button) {
-        case BTN_LEFT: return 1;        // LBUTTON
-        case BTN_RIGHT: return 3;       // RBUTTON  
-        case BTN_MIDDLE: return 2;      // MBUTTON
-        case BTN_SIDE: return 8;        // Button8/Back
-        case BTN_EXTRA: return 9;       // Button9/Forward
+        case BTN_LEFT:    return 1;        // LBUTTON
+        case BTN_RIGHT:   return 3;       // RBUTTON  
+        case BTN_MIDDLE:  return 2;      // MBUTTON
+        case BTN_SIDE:    return 8;        // Button8/Back
+        case BTN_EXTRA:   return 9;       // Button9/Forward
         case BTN_FORWARD: return 9;     // FBUTTON
-        case BTN_BACK: return 8;        // BBUTTON
+        case BTN_BACK:    return 8;        // BBUTTON
         default: 
             msg(LOG_DEBUG, "Unknown button code: 0x%x", button);
             return button;
     }
 }
 
-// Add uinput device for forwarding events we want to pass through
 int uinput_fd = -1;
 
-// Replace the init_uinput function with this version that uses the older API
 int init_uinput(void) {
     uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (uinput_fd < 0) {
@@ -403,7 +397,6 @@ int init_uinput(void) {
     ioctl(uinput_fd, UI_SET_RELBIT, REL_Y);
     ioctl(uinput_fd, UI_SET_RELBIT, REL_WHEEL);
     
-    // Use the older uinput_user_dev structure instead of uinput_setup
     struct uinput_user_dev udev = {0};
     strcpy(udev.name, "eeka virtual mouse");
     udev.id.bustype = BUS_USB;
@@ -418,7 +411,6 @@ int init_uinput(void) {
     return 0;
 }
 
-// Fix cleanup_uinput function
 void cleanup_uinput(void) {
     if (uinput_fd >= 0) {
         ioctl(uinput_fd, UI_DEV_DESTROY);
@@ -445,21 +437,15 @@ void forward_event(int type, int code, int value) {
     write(uinput_fd, &ev, sizeof(ev));
 }
 
-// Add these function implementations before process_evdev_events()
-
-// Update handle_button_press to track blocked vs passthrough buttons
 void handle_button_press(int button) {
     msg(LOG_DEBUG, "%s pressed", get_button_name(button));
     
-    // For potential modifier buttons, check if we should block them
     if (!button_state.modifier_pressed && 
         (button == RBUTTON || button == BBUTTON || button == FBUTTON)) {
         
         xcb_window_t target_window = find_target_window(connection);
         WindowClassInfo info = get_window_class_info(connection, target_window);
         
-        // This check should never be true now since we don't call this function for blacklisted buttons
-        // But keeping it as a safety check
         if (info.valid && is_button_blacklisted(info.instance, info.class_name, button)) {
             msg(LOG_DEBUG, "Button %d pressed on blacklisted window - this shouldn't happen", button);
             return;
@@ -470,7 +456,6 @@ void handle_button_press(int button) {
             return;
         }
         
-        // Add this button to the blocked buttons list
         if (button_state.blocked_count < 10) {
             button_state.blocked_buttons[button_state.blocked_count++] = button;
         }
@@ -481,7 +466,6 @@ void handle_button_press(int button) {
         return;
     }
 
-    // Handle LButton as modifier for scroll events (but don't block it)
     if (button == LBUTTON && !button_state.modifier_pressed) {
         button_state.modifier_pressed = button;
         button_state.combo_used = 0;
@@ -489,7 +473,6 @@ void handle_button_press(int button) {
         return;
     }
 
-    // Handle combo with existing modifier
     if (button_state.modifier_pressed && button != button_state.modifier_pressed) {
         msg(LOG_DEBUG, "Detected combo: Button%d + Button%d", button_state.modifier_pressed, button);
         handle_key_binding(button_state.modifier_pressed, button);
@@ -497,7 +480,6 @@ void handle_button_press(int button) {
     }
 }
 
-// Add helper function to check if a button was actually blocked
 int was_button_blocked(int button) {
     for (int i = 0; i < button_state.blocked_count; i++) {
         if (button_state.blocked_buttons[i] == button) {
@@ -507,7 +489,6 @@ int was_button_blocked(int button) {
     return 0;
 }
 
-// Remove button from blocked list
 void remove_from_blocked_list(int button) {
     for (int i = 0; i < button_state.blocked_count; i++) {
         if (button_state.blocked_buttons[i] == button) {
@@ -521,18 +502,14 @@ void remove_from_blocked_list(int button) {
     }
 }
 
-// Update handle_button_release to only handle actually blocked buttons
 void handle_button_release(int button) {
     msg(LOG_DEBUG, "Button%d released", button);
     
-    // Only handle release for buttons that were actually blocked
     if (button_state.modifier_pressed == button && was_button_blocked(button)) {
         if (button == LBUTTON) {
-            // For LButton, we don't need to simulate anything since it passed through
             msg(LOG_DEBUG, "LButton modifier released - no action needed");
         } else if (!button_state.combo_used && 
                    (button == RBUTTON || button == BBUTTON || button == FBUTTON)) {
-            // Handle standalone button press for blocked buttons
             if (handle_key_binding(button, 0)) {
                 msg(LOG_DEBUG, "Found standalone mapping for Button%d", button);
             } else {
@@ -541,17 +518,13 @@ void handle_button_release(int button) {
             }
         }
         
-        // Remove from blocked list
         remove_from_blocked_list(button);
-        
-        // Reset modifier state
         button_state.modifier_pressed = 0;
         button_state.combo_used = 0;
     } else if (was_button_blocked(button)) {
-        // Button was blocked but not the current modifier - just remove from list
+        msg(LOG_DEBUG, "Button %d release (non modifier) - was blocked, removing from blocked list", button);
         remove_from_blocked_list(button);
     } else {
-        // Button was not blocked - it passed through normally
         if (button_state.modifier_pressed == button) {
             button_state.modifier_pressed = 0;
             button_state.combo_used = 0;
@@ -567,7 +540,6 @@ void handle_scroll_event(int scroll_direction) {
             scroll_direction == SCROLL_UP ? "ScrollUp" : "ScrollDown");
         handle_key_binding(button_state.modifier_pressed, scroll_direction);
     } else {
-        // Handle standalone scroll if you have bindings for it
         handle_key_binding(scroll_direction, 0);
     }
 }
@@ -582,14 +554,13 @@ void simulate_button_click(int button, xcb_window_t target_window) {
     switch (button) {
         case RBUTTON: xcb_button = XCB_BUTTON_INDEX_3; break;
         case MBUTTON: xcb_button = XCB_BUTTON_INDEX_2; break;
-        case BBUTTON: xcb_button = 8; break;  // Back button
-        case FBUTTON: xcb_button = 9; break;  // Forward button
+        case BBUTTON: xcb_button = 8; break;
+        case FBUTTON: xcb_button = 9; break;
         default:
             msg(LOG_DEBUG, "No click simulation needed for button %d", button);
             return;
     }
     
-    // Get current pointer position
     xcb_query_pointer_cookie_t cookie = xcb_query_pointer(connection, target_window);
     xcb_query_pointer_reply_t *reply = xcb_query_pointer_reply(connection, cookie, NULL);
     
@@ -602,23 +573,19 @@ void simulate_button_click(int button, xcb_window_t target_window) {
     int16_t y = reply->win_y;
     free(reply);
     
-    // Simulate button press and release
     xcb_test_fake_input(connection, XCB_BUTTON_PRESS, xcb_button, XCB_CURRENT_TIME, target_window, x, y, 0);
     xcb_flush(connection);
-    usleep(10000); // 10ms delay between press and release
+    usleep(10000);
     xcb_test_fake_input(connection, XCB_BUTTON_RELEASE, xcb_button, XCB_CURRENT_TIME, target_window, x, y, 0);
     xcb_flush(connection);
     
     msg(LOG_DEBUG, "Simulated click for button %d at (%d, %d)", button, x, y);
 }
 
-// Make sure these functions are placed BEFORE process_evdev_events() which calls them
-
-// Add helper functions for blacklisted tracking
 void add_to_blacklisted_list(int button) {
     for (int i = 0; i < button_state.blacklisted_count; i++) {
         if (button_state.blacklisted_buttons[i] == button) {
-            return; // Already in list
+            return;
         }
     }
     if (button_state.blacklisted_count < 10) {
@@ -629,7 +596,6 @@ void add_to_blacklisted_list(int button) {
 void remove_from_blacklisted_list(int button) {
     for (int i = 0; i < button_state.blacklisted_count; i++) {
         if (button_state.blacklisted_buttons[i] == button) {
-            // Shift remaining buttons down
             for (int j = i; j < button_state.blacklisted_count - 1; j++) {
                 button_state.blacklisted_buttons[j] = button_state.blacklisted_buttons[j + 1];
             }
@@ -648,9 +614,6 @@ int is_currently_blacklisted(int button) {
     return 0;
 }
 
-// Add function to check if any keyboard modifiers are currently pressed
-// Alternative approach using XCB key symbols
-// Update the are_keyboard_modifiers_pressed function to use eeka.h constants
 int are_keyboard_modifiers_pressed(void) {
     xcb_query_keymap_cookie_t cookie = xcb_query_keymap(connection);
     xcb_query_keymap_reply_t *reply = xcb_query_keymap_reply(connection, cookie, NULL);
@@ -659,7 +622,6 @@ int are_keyboard_modifiers_pressed(void) {
         return 0;
     }
     
-    // Use the constants from eeka.h
     const uint8_t modifier_keycodes[] = {
         XCB_KEY_CONTROL_L,
         XCB_KEY_CONTROL_R,
@@ -688,7 +650,6 @@ int are_keyboard_modifiers_pressed(void) {
     return modifiers_pressed;
 }
 
-// Update process_evdev_events to only check modifiers when needed
 void process_evdev_events(void) {
     struct input_event events[64];
     ssize_t bytes = read(evdev_ctx.mouse_fd, events, sizeof(events));
@@ -706,7 +667,6 @@ void process_evdev_events(void) {
         struct input_event *ev = &events[i];
         
         if (!enabled || !grabbing_enabled) {
-            // Forward all events when disabled
             forward_event(ev->type, ev->code, ev->value);
             continue;
         }
@@ -716,9 +676,7 @@ void process_evdev_events(void) {
             int should_block = 0;
             int is_blacklisted = 0;
             
-            // Only check keyboard modifiers for potential modifier buttons
             if (eeka_button == RBUTTON || eeka_button == BBUTTON || eeka_button == FBUTTON || eeka_button == LBUTTON) {
-                // Check if keyboard modifiers are pressed - if so, pass everything through
                 if (are_keyboard_modifiers_pressed()) {
                     msg(LOG_DEBUG, "Keyboard modifiers detected - passing button %d through", eeka_button);
                     forward_event(ev->type, ev->code, ev->value);
@@ -727,7 +685,6 @@ void process_evdev_events(void) {
             }
             
             if (ev->value == 1) { // PRESS
-                // Check blacklist status at press time
                 if (eeka_button == RBUTTON || eeka_button == BBUTTON || eeka_button == FBUTTON) {
                     xcb_window_t target_window = find_target_window(connection);
                     WindowClassInfo info = get_window_class_info(connection, target_window);
@@ -741,19 +698,17 @@ void process_evdev_events(void) {
                     }
                 }
                 
-                // Only call handler if not blacklisted
                 if (!is_blacklisted) {
                     handle_button_press(eeka_button);
                 }
                 
             } else if (ev->value == 0) { // RELEASE
-                // Check if this button was blacklisted during press
                 if (is_currently_blacklisted(eeka_button)) {
                     is_blacklisted = 1;
                     remove_from_blacklisted_list(eeka_button);
                     msg(LOG_DEBUG, "Button %d release - was blacklisted, passing through", eeka_button);
                 } else {
-                    // Check if it was blocked
+
                     if (was_button_blocked(eeka_button)) {
                         should_block = 1;
                     }
@@ -761,7 +716,6 @@ void process_evdev_events(void) {
                 }
             }
             
-            // Forward event if not blocking
             if (!should_block) {
                 forward_event(ev->type, ev->code, ev->value);
             }
@@ -769,14 +723,12 @@ void process_evdev_events(void) {
         } else if (ev->type == EV_REL && ev->code == REL_WHEEL) {
             int should_block = 0;
             
-            // Check keyboard modifiers for scroll events
             if (are_keyboard_modifiers_pressed()) {
                 msg(LOG_DEBUG, "Keyboard modifiers detected - passing scroll through");
                 forward_event(ev->type, ev->code, ev->value);
                 continue;
             }
             
-            // Block scroll events when there's a modifier pressed
             if (button_state.modifier_pressed) {
                 should_block = 1;
             }
@@ -792,7 +744,6 @@ void process_evdev_events(void) {
             }
             
         } else {
-            // Forward all other events (mouse movement, etc.) without any checks
             forward_event(ev->type, ev->code, ev->value);
         }
     }
@@ -848,7 +799,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // Replace libinput initialization with evdev
     if (init_evdev() < 0) {
         msg(LOG_ERR, "Failed to initialize evdev");
         xcb_disconnect(connection);
@@ -864,17 +814,16 @@ int main(int argc, char *argv[]) {
 
     msg(LOG_NOTICE, "eeka started successfully");
     
-    // Main event loop with both XCB and evdev
     int xcb_fd = xcb_get_file_descriptor(connection);
     
     while (running) {
         struct pollfd fds[2];
         fds[0].fd = xcb_fd;
         fds[0].events = POLLIN;
-        fds[1].fd = evdev_ctx.mouse_fd;  // Use evdev fd
+        fds[1].fd = evdev_ctx.mouse_fd;
         fds[1].events = POLLIN;
         
-        int poll_result = poll(fds, 2, 100); // 100ms timeout
+        int poll_result = poll(fds, 2, 100);
         
         if (poll_result < 0) {
             if (errno == EINTR) continue;
@@ -882,18 +831,15 @@ int main(int argc, char *argv[]) {
             break;
         }
         
-        // Process XCB events (for window detection)
         if (fds[0].revents & POLLIN) {
             xcb_generic_event_t *event;
             while ((event = xcb_poll_for_event(connection)) != NULL) {
-                // Handle any remaining XCB events if needed
                 free(event);
             }
         }
         
-        // Process evdev events (mouse input)
         if (fds[1].revents & POLLIN) {
-            process_evdev_events();  // Use evdev processing
+            process_evdev_events();
         }
     }
 

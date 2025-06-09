@@ -29,7 +29,7 @@ typedef struct {
     char class_name[128];
     KeyBinding bindings[MAX_BINDINGS_PER_RULE];
     int binding_count;
-    int blacklisted_buttons[MAX_BUTTONS_PER_RULE];  // Array of blacklisted button numbers
+    int blacklisted_buttons[MAX_BUTTONS_PER_RULE];
     int blacklist_count;
 } WindowRule;
 
