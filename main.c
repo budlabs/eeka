@@ -283,10 +283,13 @@ int find_mouse_device(char *device_path, size_t path_size) {
     DIR *dir = opendir("/dev/input");
     if (!dir) {
         msg(LOG_ERR, "Cannot open /dev/input directory");
-        return -1;
+        return -1; 
     }
     
     struct dirent *entry;
+    char best_device[280] = {0};
+    int best_score = 0;
+    
     while ((entry = readdir(dir)) != NULL) {
         if (strncmp(entry->d_name, "event", 5) != 0) continue;
         
@@ -296,32 +299,71 @@ int find_mouse_device(char *device_path, size_t path_size) {
         int fd = open(full_path, O_RDONLY);
         if (fd < 0) continue;
         
-        // Check if this device has button capabilities
         unsigned long evbit[BITS_TO_LONGS(EV_CNT)] = {0};
         unsigned long keybit[BITS_TO_LONGS(KEY_CNT)] = {0};
+        unsigned long relbit[BITS_TO_LONGS(REL_CNT)] = {0};
         
         if (ioctl(fd, EVIOCGBIT(0, sizeof(evbit)), evbit) >= 0 &&
-            ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybit)), keybit) >= 0) {
+            ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybit)), keybit) >= 0 &&
+            ioctl(fd, EVIOCGBIT(EV_REL, sizeof(relbit)), relbit) >= 0) {
             
-            // Check for mouse buttons
-            if (test_bit(EV_KEY, evbit) && 
-                (test_bit(BTN_LEFT, keybit) || test_bit(BTN_RIGHT, keybit))) {
+            if (test_bit(EV_KEY, evbit) && test_bit(EV_REL, evbit) &&
+                test_bit(BTN_LEFT, keybit) && test_bit(BTN_RIGHT, keybit) &&
+                test_bit(REL_X, relbit) && test_bit(REL_Y, relbit)) {
                 
                 char name[256] = "Unknown";
                 ioctl(fd, EVIOCGNAME(sizeof(name)), name);
-                msg(LOG_NOTICE, "Found mouse device: %s (%s)", full_path, name);
                 
-                strncpy(device_path, full_path, path_size - 1);
-                device_path[path_size - 1] = '\0';
-                close(fd);
-                closedir(dir);
-                return 0;
+                int score = 0;
+                
+                if (is_device_blacklisted(name)) {
+                    msg(LOG_DEBUG, "Skipping blacklisted device: %s (%s)", full_path, name);
+                    close(fd);
+                    continue;
+                }
+                
+
+                
+                if (strstr(name, "Mouse") || strstr(name, "mouse")) {
+                    score += 10;
+                }
+                
+                if (test_bit(REL_WHEEL, relbit)) {
+                    score += 5;
+                }
+                
+                if (test_bit(BTN_SIDE, keybit) || test_bit(BTN_EXTRA, keybit)) {
+                    score += 3;
+                }
+                
+                msg(LOG_DEBUG, "Found mouse candidate: %s (%s) score=%d", full_path, name, score);
+                
+                if (score > best_score) {
+                    best_score = score;
+                    strncpy(best_device, full_path, sizeof(best_device) - 1);
+                    best_device[sizeof(best_device) - 1] = '\0';
+                }
             }
         }
         close(fd);
     }
     
     closedir(dir);
+    
+    if (best_score > 0) {
+        char name[256] = "Unknown";
+        int fd = open(best_device, O_RDONLY);
+        if (fd >= 0) {
+            ioctl(fd, EVIOCGNAME(sizeof(name)), name);
+            close(fd);
+        }
+        
+        msg(LOG_NOTICE, "Selected mouse device: %s (%s)", best_device, name);
+        strncpy(device_path, best_device, path_size - 1);
+        device_path[path_size - 1] = '\0';
+        return 0;
+    }
+    
     msg(LOG_ERR, "No suitable mouse device found");
     return -1;
 }
@@ -749,6 +791,15 @@ void process_evdev_events(void) {
     }
 }
 
+void create_pidfile_path(void) {
+    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+    if (runtime_dir) {
+        snprintf(pidfile_path, sizeof(pidfile_path), "%s/eeka.pid", runtime_dir);
+    } else {
+        snprintf(pidfile_path, sizeof(pidfile_path), "/tmp/eeka-%d.pid", getuid());
+    }
+}
+
 int main(int argc, char *argv[]) {
     const char *config_path = "/etc/eeka.conf";
     int opt;
@@ -759,6 +810,8 @@ int main(int argc, char *argv[]) {
         {"toggle", no_argument, 0, 't'},
         {0, 0, 0, 0}
     };
+
+    create_pidfile_path();
 
     while ((opt = getopt_long(argc, argv, "hc:Vt", long_options, NULL)) != -1) {
         switch (opt) {

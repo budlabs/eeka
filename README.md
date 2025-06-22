@@ -27,6 +27,8 @@ Options:
 ```
 # ~/.config/eeka/config
 
+device_blacklist = keyd
+
 RButton & ScrollUp   = Ctrl+PageDown
 RButton & ScrollDown = Ctrl+PageUp
 RButton & MButton    = Ctrl+W
@@ -74,11 +76,6 @@ It is also possible to *disable* all grabbing on a running instance of `eeka` by
 - eeka only works on Linux (uses [evdev] for fine grained control over mousebutton grabs)
 
 But beside [xcb] it doesn't have any dependencies, so it should be trivial to build on any linux distribution. 
-
-```
-$ make
-# make install
-```
 
 **Requirements:**
 - Linux with X11

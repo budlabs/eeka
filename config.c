@@ -12,9 +12,12 @@ static WindowRule window_rules[MAX_WINDOW_RULES];
 static int binding_count = 0;
 static int window_rule_count = 0;
 
+DeviceConfig device_config = {0};
+
 int parse_window_rule(FILE* config, const char* first_line);
 int button_name_to_number(const char* button_name);
 void parse_window_blacklist_line(WindowRule* rule, const char* blacklist_str);
+void parse_device_blacklist_line(const char* blacklist_str);
 
 const char* get_action_name(const Action* action) {
     static char action_str[64];
@@ -441,6 +444,7 @@ int parse_config_file(const char* filename) {
     char merged_line[1024] = {0};
     binding_count = 0;
     window_rule_count = 0;
+    device_config.device_blacklist_count = 0;
     int in_continuation = 0;
 
     while (fgets(line, sizeof(line), config) && binding_count < MAX_BINDINGS) {
@@ -488,6 +492,11 @@ int parse_config_file(const char* filename) {
             continue;
         }
 
+        if (strncmp(trimmed_line, "device_blacklist = ", 19) == 0) {
+            parse_device_blacklist_line(trimmed_line + 19);
+            continue;
+        }
+
         KeyBinding binding = {0};
 
         if (parse_binding_line(trimmed_line, &binding)) {
@@ -511,6 +520,47 @@ int parse_config_file(const char* filename) {
     }
 
     return binding_count;
+}
+
+void parse_device_blacklist_line(const char* blacklist_str) {
+    char* token_start = (char*)blacklist_str;
+    
+    while (*token_start && device_config.device_blacklist_count < MAX_DEVICE_BLACKLIST) {
+        while (*token_start && (isspace(*token_start) || *token_start == ',')) {
+            token_start++;
+        }
+        
+        if (!*token_start) break;
+        
+        char* token_end = token_start;
+        while (*token_end && *token_end != ',' && !isspace(*token_end)) {
+            token_end++;
+        }
+        
+        char device_name[MAX_DEVICE_NAME_LENGTH] = {0};
+        int len = token_end - token_start;
+        if (len >= MAX_DEVICE_NAME_LENGTH) len = MAX_DEVICE_NAME_LENGTH - 1;
+        strncpy(device_name, token_start, len);
+        device_name[len] = '\0';
+        
+        strncpy(device_config.blacklisted_devices[device_config.device_blacklist_count], 
+                device_name, MAX_DEVICE_NAME_LENGTH - 1);
+        device_config.blacklisted_devices[device_config.device_blacklist_count][MAX_DEVICE_NAME_LENGTH - 1] = '\0';
+        device_config.device_blacklist_count++;
+        
+        msg(LOG_NOTICE, "Added device to blacklist: %s", device_name);
+        
+        token_start = token_end;
+    }
+}
+
+int is_device_blacklisted(const char* device_name) {
+   for (int i = 0; i < device_config.device_blacklist_count; i++) {
+       if (strstr(device_name, device_config.blacklisted_devices[i])) {
+           return 1;
+       }
+   }
+   return 0;
 }
 
 int is_button_blacklisted(const char* instance, const char* class_name, int button) {

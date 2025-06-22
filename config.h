@@ -12,6 +12,15 @@
 #define MAX_WINDOW_RULES 20
 #define MAX_BINDINGS_PER_RULE 20
 
+#define MAX_DEVICE_BLACKLIST 10
+#define MAX_DEVICE_NAME_LENGTH 64
+
+typedef struct {
+    char blacklisted_devices[MAX_DEVICE_BLACKLIST][MAX_DEVICE_NAME_LENGTH];
+    int device_blacklist_count;
+} DeviceConfig;
+
+extern DeviceConfig device_config;
 
 typedef struct {
     unsigned int modifiers;
@@ -40,4 +49,4 @@ const Action* get_action_for_buttons(int first_button, int second_button);
 const Action* get_action_for_window(const char* instance, const char* class_name, int first_button, int second_button);
 int           is_button_blacklisted(const char* instance, const char* class_name, int button);
 const char*   config_path_get_default(void);
-
+int           is_device_blacklisted(const char* device_name);

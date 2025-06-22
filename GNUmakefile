@@ -15,18 +15,21 @@ OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRC))
 CPPFLAGS += -Wall -Wextra -std=c99 -D_GNU_SOURCE -O2
 LDFLAGS += -lxcb -lxcb-keysyms -lxcb-xtest
 
-all: dirs $(BUILD_DIR)/$(NAME)
+all: $(BUILD_DIR)/$(NAME)
 
-dirs:
+$(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(BUILD_DIR)/%.o: %.c
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	gcc -c $< -o $@ $(CPPFLAGS)
 
 $(BUILD_DIR)/$(NAME): $(OBJ)
 	gcc $^ -o $@ $(LDFLAGS)
 
-run: $(BUILD_DIR)/$(NAME)
+run:
+	$(MAKE) clean
+	rm -rf .gcc
+	$(MAKE) $(BUILD_DIR)/$(NAME) --no-print-directory 2>&1 | tee -a .gcc
 	./$(BUILD_DIR)/$(NAME) -c .config -V
 
 clean:
