@@ -1,0 +1,11 @@
+# device_blacklist = keyd
+
+RButton & ScrollUp   = Ctrl+PageDown
+RButton & ScrollDown = Ctrl+PageUp
+RButton & MButton    = Ctrl+W
+
+# BButton = Backspace
+
+window [instance=i3-frame] {
+    blacklist = RButton
+}
