@@ -19,6 +19,7 @@
 #include <errno.h>
 
 #include "config.h"
+#include "parser.h"
 #include "eeka.h"
 
 static EvdevContext evdev_ctx = {0};

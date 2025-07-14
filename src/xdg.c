@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include "xdg.h"
 #include <libgen.h>
+#include "config.h"
 
 char* xdg_get_directory(xdg_directory_type_t directory_type) {
     const char *environment_variable = NULL;
@@ -15,10 +16,10 @@ char* xdg_get_directory(xdg_directory_type_t directory_type) {
     switch (directory_type) {
         case XDG_RUNTIME_DIR: {
             environment_variable = "XDG_RUNTIME_DIR";
-            size_t fallback_size = snprintf(NULL, 0, "/tmp/halen-%d", getuid()) + 1;
+            size_t fallback_size = snprintf(NULL, 0, "/tmp/%s-%d", PROGRAM_NAME, getuid()) + 1;
             fallback_path = malloc(fallback_size);
             if (fallback_path) {
-                snprintf(fallback_path, fallback_size, "/tmp/halen-%d", getuid());
+                snprintf(fallback_path, fallback_size, "/tmp/%s-%d", PROGRAM_NAME, getuid());
             }
             break;
         }

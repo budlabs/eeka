@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <ctype.h>
 
+#include "parser.h"
 #include "config.h"
 #include "eeka.h"
 
