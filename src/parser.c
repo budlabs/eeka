@@ -18,7 +18,7 @@ DeviceConfig device_config = {0};
 int parse_window_rule(FILE* config, const char* first_line);
 int button_name_to_number(const char* button_name);
 void parse_window_blacklist_line(WindowRule* rule, const char* blacklist_str);
-void parse_device_blacklist_line(const char* blacklist_str);
+static void parse_device_blacklist_line(const char* blacklist_str);
 
 const char* get_action_name(const Action* action) {
     static char action_str[64];
@@ -523,7 +523,7 @@ int parse_config_file(const char* filename) {
     return binding_count;
 }
 
-void parse_device_blacklist_line(const char* blacklist_str) {
+static void parse_device_blacklist_line(const char* blacklist_str) {
     char* token_start = (char*)blacklist_str;
     
     while (*token_start && device_config.device_blacklist_count < MAX_DEVICE_BLACKLIST) {
@@ -544,9 +544,8 @@ void parse_device_blacklist_line(const char* blacklist_str) {
         strncpy(device_name, token_start, len);
         device_name[len] = '\0';
         
-        strncpy(device_config.blacklisted_devices[device_config.device_blacklist_count], 
-                device_name, MAX_DEVICE_NAME_LENGTH - 1);
-        device_config.blacklisted_devices[device_config.device_blacklist_count][MAX_DEVICE_NAME_LENGTH - 1] = '\0';
+        snprintf(device_config.blacklisted_devices[device_config.device_blacklist_count], 
+                 MAX_DEVICE_NAME_LENGTH, "%s", device_name);
         device_config.device_blacklist_count++;
         
         msg(LOG_NOTICE, "Added device to blacklist: %s", device_name);
