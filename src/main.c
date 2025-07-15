@@ -21,6 +21,7 @@
 #include "config.h"
 #include "parser.h"
 #include "eeka.h"
+#include "xdg.h"
 
 static EvdevContext evdev_ctx = {0};
 
@@ -792,10 +793,11 @@ void process_evdev_events(void) {
     }
 }
 
-void create_pidfile_path(void) {
-    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+static void create_pidfile_path(void) {
+    char* runtime_dir = xdg_get_directory(XDG_RUNTIME_DIR);
     if (runtime_dir) {
         snprintf(pidfile_path, sizeof(pidfile_path), "%s/eeka.pid", runtime_dir);
+        free(runtime_dir);
     } else {
         snprintf(pidfile_path, sizeof(pidfile_path), "/tmp/eeka-%d.pid", getuid());
     }

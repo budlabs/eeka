@@ -7,6 +7,7 @@
 #include "parser.h"
 #include "config.h"
 #include "eeka.h"
+#include "xdg.h"
 
 static KeyBinding bindings[MAX_BINDINGS];
 static WindowRule window_rules[MAX_WINDOW_RULES];
@@ -168,67 +169,6 @@ int button_name_to_number(const char* button_name) {
     if (strcasecmp(button_name, "ScrollUp") == 0) return 4;
     if (strcasecmp(button_name, "ScrollDown") == 0) return 5;
     return 0;
-}
-
-const char* config_path_get_default(void) {
-    static char config_path[PATH_MAX];
-    const char* xdg_config_home;
-    const char* home;
-    FILE* test_file;
-    xdg_config_home = getenv("XDG_CONFIG_HOME");
-    if (xdg_config_home && *xdg_config_home) {
-        snprintf(config_path, PATH_MAX, "%s/eeka/config", xdg_config_home);
-        test_file = fopen(config_path, "r");
-        if (test_file) {
-            fclose(test_file);
-            msg(LOG_DEBUG, "Found config at $XDG_CONFIG_HOME: %s", config_path);
-            return config_path;
-        }
-    }
-    home = getenv("HOME");
-    if (home && *home) {
-        snprintf(config_path, PATH_MAX, "%s/.config/eeka/config", home);
-        test_file = fopen(config_path, "r");
-        if (test_file) {
-            fclose(test_file);
-            msg(LOG_DEBUG, "Found config at $HOME/.config: %s", config_path);
-            return config_path;
-        }
-    }
-    const char* xdg_data_dirs = getenv("XDG_DATA_DIRS");
-    if (!xdg_data_dirs || !*xdg_data_dirs) {
-        xdg_data_dirs = "/usr/local/share:/usr/share";
-    }
-    char data_dirs[PATH_MAX];
-    strncpy(data_dirs, xdg_data_dirs, PATH_MAX - 1);
-    data_dirs[PATH_MAX - 1] = '\0';
-    char* dir = strtok(data_dirs, ":");
-    while (dir) {
-        snprintf(config_path, PATH_MAX, "%s/eeka/config", dir);
-        test_file = fopen(config_path, "r");
-        if (test_file) {
-            fclose(test_file);
-            msg(LOG_DEBUG, "Found config at XDG_DATA_DIR: %s", config_path);
-            return config_path;
-        }
-        dir = strtok(NULL, ":");
-    }
-    snprintf(config_path, PATH_MAX, "/etc/eeka/config");
-    test_file = fopen(config_path, "r");
-    if (test_file) {
-        fclose(test_file);
-        msg(LOG_DEBUG, "Found config at system location: %s", config_path);
-        return config_path;
-    }
-    if (xdg_config_home && *xdg_config_home) {
-        snprintf(config_path, PATH_MAX, "%s/eeka/config", xdg_config_home);
-    } else if (home && *home) {
-        snprintf(config_path, PATH_MAX, "%s/.config/eeka/config", home);
-    } else {
-        snprintf(config_path, PATH_MAX, "./eeka.config");
-    }
-    msg(LOG_DEBUG, "No existing config found, will use: %s", config_path);
-    return config_path;
 }
 
 int parse_binding_line(const char* line, KeyBinding* binding) {
@@ -416,11 +356,13 @@ int parse_config_file(const char* filename) {
     char real_path[PATH_MAX];
 
     if (!filename || strlen(filename) == 0) {
-        snprintf(real_path, sizeof(real_path), "%s", config_path_get_default());
-        filename = real_path;
-    }
-
-    if (filename[0] == '~') {
+        const char* default_path = xdg_get_user_config_path(PROGRAM_NAME);
+        if (!default_path) {
+            return 0;
+        }
+        strncpy(real_path, default_path, PATH_MAX - 1);
+        real_path[PATH_MAX - 1] = '\0';
+    } else if (filename[0] == '~') {
         const char* home = getenv("HOME");
         if (!home) {
             msg(LOG_ERR, "Could not determine home directory");
@@ -428,8 +370,8 @@ int parse_config_file(const char* filename) {
         }
         snprintf(real_path, PATH_MAX, "%s%s", home, filename + 1);
     } else {
-        strncpy(real_path, filename, PATH_MAX);
-        real_path[PATH_MAX-1] = '\0';
+        strncpy(real_path, filename, PATH_MAX - 1);
+        real_path[PATH_MAX - 1] = '\0';
     }
 
     FILE* config = fopen(real_path, "r");

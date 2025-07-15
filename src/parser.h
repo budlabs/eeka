@@ -48,5 +48,4 @@ const char*   get_button_name(int button);
 const Action* get_action_for_buttons(int first_button, int second_button);
 const Action* get_action_for_window(const char* instance, const char* class_name, int first_button, int second_button);
 int           is_button_blacklisted(const char* instance, const char* class_name, int button);
-const char*   config_path_get_default(void);
 int           is_device_blacklisted(const char* device_name);

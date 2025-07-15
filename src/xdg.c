@@ -1,12 +1,12 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include "xdg.h"
 #include <libgen.h>
+
+#include "xdg.h"
 #include "config.h"
 
 char* xdg_get_directory(xdg_directory_type_t directory_type) {
@@ -16,10 +16,10 @@ char* xdg_get_directory(xdg_directory_type_t directory_type) {
     switch (directory_type) {
         case XDG_RUNTIME_DIR: {
             environment_variable = "XDG_RUNTIME_DIR";
-            size_t fallback_size = snprintf(NULL, 0, "/tmp/%s-%d", PROGRAM_NAME, getuid()) + 1;
+            size_t fallback_size = strlen("/tmp") + 1;
             fallback_path = malloc(fallback_size);
             if (fallback_path) {
-                snprintf(fallback_path, fallback_size, "/tmp/%s-%d", PROGRAM_NAME, getuid());
+                snprintf(fallback_path, fallback_size, "%s", "/tmp");
             }
             break;
         }
@@ -64,22 +64,19 @@ char* xdg_get_directory(xdg_directory_type_t directory_type) {
             return NULL;
     }
     
-    if (!fallback_path) {
-        errno = ENOMEM;
-        return NULL;
-    }
-    
     char *xdg_value = getenv(environment_variable);
     if (xdg_value && strlen(xdg_value) > 0) {
         free(fallback_path);
         return strdup(xdg_value);
     }
+
+    if (!fallback_path) {
+        errno = ENOMEM;
+        return NULL;
+    }
     
     if (mkdir(fallback_path, 0700) == -1 && errno != EEXIST) {
-        if (directory_type == XDG_RUNTIME_DIR) {
-            free(fallback_path);
-            return strdup("/tmp");
-        }
+        return NULL;
     }
     
     return fallback_path;
