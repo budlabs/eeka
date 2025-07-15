@@ -14,6 +14,8 @@ RButton & MButton::Send,^w
 More or less all applications with "tabs" (browsers, filemanagers, text editors) have support for keyboard 
 shortcuts `Ctrl+PgUp/PgDown` to navigate the tabs (also `Ctrl+[shift]+Tab`) and `Ctrl+w` to close the tabs. It is really sweet to have that functionality also on the mouse, and i set it up so that holding Right Mousebutton while scrolling the mousewheel. I have never managed to get this working on linux and X11, since it would require using the RightButton of the mouse as a "modifier" in a keyboard shortcut. But now, with `eeka` it is possible :D
 
+I also made a [video demonstration](https://www.youtube.com/watch?v=KClM9Xgxhu0) of the program 2025-07-15
+
 ---
 
 ```
