@@ -2,7 +2,7 @@ NAME          := eeka
 VERSION       := 0.1
 
 PREFIX        ?= /usr
-DATA_DIR      := $(PREFIX)/share/$(NAME)
+DATA_DIR      := $(DESTDIR)$(PREFIX)/share/$(NAME)
 BUILD_DIR     ?= build
 
 SHELL         := /bin/bash
@@ -27,11 +27,11 @@ $(BUILD_DIR)/config.h: GNUmakefile | $(BUILD_DIR)
 	@echo "#define DATA_DIR \"$(DATA_DIR)\"" >> $@
 
 install: $(BUILD_DIR)/$(NAME)
-	install -Dm 755 $^ "$(PREFIX)/bin/$(NAME)"
+	install -Dm 755 $^ "$(DESTDIR)$(PREFIX)/bin/$(NAME)"
 	install -Dm 633 data/config "$(DATA_DIR)/config"
 
 uninstall:
-	rm -f "$(PREFIX)/bin/$(NAME)" "$(DATA_DIR)/config"
+	rm -f "$(DESTDIR)$(PREFIX)/bin/$(NAME)" "$(DATA_DIR)/config"
 	rmdir "$(DATA_DIR)"
 
 $(BUILD_DIR)/%.o: src/%.c $(BUILD_DIR)/config.h | $(BUILD_DIR)
